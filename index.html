@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SahabatSholat | Nuur Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        heading: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: { DEFAULT: '#1E40AF', light: '#3B82F6', dark: '#1E3A8A' },
+                        accent: '#0EA5E9',
+                        success: '#10B981',
+                        surface: '#F8FAFC',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #F8FAFC;
+            background-image: radial-gradient(at 0% 0%, hsla(217,100%,76%,0.1) 0px, transparent 50%), radial-gradient(at 100% 0%, hsla(160,100%,76%,0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            transition: background-color 0.5s ease;
+        }
+        .dark body { background-color: #0F172A; background-image: none; color: #F1F5F9; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .dark .glass-card { background: rgba(30, 41, 59, 0.85); border-color: rgba(255, 255, 255, 0.1); }
+        
+        /* Time-based background themes */
+        .theme-morning { background: linear-gradient(135deg, #38bdf8, #0284c7); }
+        .theme-day { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
+        .theme-afternoon { background: linear-gradient(135deg, #f59e0b, #b45309); }
+        .theme-sunset { background: linear-gradient(135deg, #f43f5e, #be123c); }
+        .theme-night { background: linear-gradient(135deg, #312e81, #1e1b4b); }
+
+        /* Sakinah Mode */
+        .sakinah-mode body { background-color: #0B1120; background-image: none; color: #E2E8F0; }
+        .sakinah-mode .hide-sakinah { display: none !important; opacity: 0; pointer-events: none; }
+        .sakinah-mode .glass-card { background: rgba(15, 23, 42, 0.8); border-color: rgba(255, 255, 255, 0.05); box-shadow: none; }
+        
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.95); } 50% { transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        
+        .anim-pop { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .anim-pulse-soft { animation: pulseSoft 2s infinite; }
+        
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        
+        /* Accessibility */
+        .a11y-reduce-motion * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        .tab-btn.active { color: #1E40AF; border-bottom: 2px solid #1E40AF; font-weight: 600; }
+        .dark .tab-btn.active { color: #3B82F6; border-color: #3B82F6; }
+        .sakinah-mode .tab-btn.active { color: #94A3B8; border-color: #94A3B8; }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        
+        #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 100; display: flex; flex-direction: column; gap: 0.5rem; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col font-sans transition-colors duration-500">
+
+    <header class="sticky top-0 z-50 glass-card px-4 py-3 md:px-8 flex justify-between items-center mb-4 border-b border-slate-200/50 dark:border-slate-700/50">
+        <div class="flex items-center gap-2 text-primary dark:text-blue-400 sakinah-mode:text-slate-300">
+            <i data-lucide="moon-star" class="w-7 h-7 text-accent sakinah-mode:text-slate-400"></i>
+            <h1 class="font-heading font-bold text-xl tracking-tight hidden sm:block">SahabatSholat</h1>
+        </div>
+        
+        <div onclick="openModal('location-modal')" class="flex items-center bg-white/60 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition shadow-sm hover:scale-105">
+            <i data-lucide="map-pin" class="w-4 h-4 mr-2 text-accent"></i> 
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200" id="header-location">Jakarta, ID</span>
+        </div>
+
+        <div class="flex items-center gap-3 relative">
+            <button onclick="openModal('notification-modal')" class="p-2 bg-white/60 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-full transition shadow-sm relative hover:scale-110">
+                <i data-lucide="bell" class="w-5 h-5 text-slate-600 dark:text-slate-300"></i>
+                <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+            </button>
+            <div onclick="toggleProfileMenu()" class="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-accent text-white flex items-center justify-center font-bold shadow-md cursor-pointer hover:scale-105 transition select-none">
+                M
+            </div>
+            
+            <!-- Profile Dropdown Menu -->
+            <div id="profile-menu" class="hidden absolute top-12 right-0 w-56 glass-card bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50 anim-pop">
+                <div class="px-4 py-2 border-b border-slate-100 dark:border-slate-700 mb-2">
+                    <p class="font-bold text-sm dark:text-white">Muslim User</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Tingkatkan Ibadahmu</p>
+                </div>
+                <a href="#" onclick="openModal('notification-modal'); toggleProfileMenu();" class="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><i data-lucide="bell-ring" class="w-4 h-4 mr-3 text-primary"></i> Pengingat Sholat</a>
+                <a href="#" onclick="openModal('location-modal'); toggleProfileMenu();" class="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><i data-lucide="map" class="w-4 h-4 mr-3 text-accent"></i> Lokasi & Metode</a>
+                <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                
+                <button onclick="toggleDarkMode(); toggleProfileMenu();" class="w-full flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><i data-lucide="moon" class="w-4 h-4 mr-3 text-slate-500"></i> <span id="dark-mode-text">Mode Gelap</span></button>
+                <button onclick="toggleSakinahMode(); toggleProfileMenu();" class="w-full flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><i data-lucide="feather" class="w-4 h-4 mr-3 text-teal-500"></i> <span id="sakinah-mode-text">Sakinah Mode</span></button>
+                <button onclick="toggleAnimations(); toggleProfileMenu();" class="w-full flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><i data-lucide="play-square" class="w-4 h-4 mr-3 text-slate-400"></i> <span id="anim-text">Matikan Animasi</span></button>
+                
+                <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                <a href="#" onclick="toggleProfileMenu(); alert('Logged out');" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><i data-lucide="log-out" class="w-4 h-4 mr-3"></i> Keluar</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-4xl mx-auto w-full px-4 mb-6 hide-sakinah">
+        <div class="flex border-b border-slate-200 dark:border-slate-700">
+            <button onclick="switchView('dashboard')" id="tab-dashboard" class="tab-btn active px-4 py-3 text-sm font-medium text-slate-500 dark:text-slate-400 focus:outline-none flex-1 text-center flex items-center justify-center gap-2 hover:text-primary transition-colors">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Beranda
+            </button>
+            <button onclick="switchView('calendar')" id="tab-calendar" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 dark:text-slate-400 focus:outline-none flex-1 text-center flex items-center justify-center gap-2 hover:text-primary transition-colors">
+                <i data-lucide="calendar-days" class="w-4 h-4"></i> Riwayat
+            </button>
+            <button onclick="switchView('stats')" id="tab-stats" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 dark:text-slate-400 focus:outline-none flex-1 text-center flex items-center justify-center gap-2 hover:text-primary transition-colors">
+                <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Statistik
+            </button>
+        </div>
+    </div>
+
+    <main class="max-w-4xl mx-auto w-full px-4 flex-grow mb-12 relative">
+        
+        <!-- VIEW 1: DASHBOARD -->
+        <div id="view-dashboard" class="view-section active">
+            
+            <!-- Hero Widget: Next Prayer -->
+            <section id="hero-widget" class="theme-day rounded-3xl p-6 md:p-8 text-white mb-6 shadow-xl relative overflow-hidden transition-colors duration-1000">
+                <div class="absolute -top-24 -right-24 opacity-10 pointer-events-none anim-pulse-soft">
+                    <i data-lucide="sun" id="hero-bg-icon" class="w-64 h-64"></i>
+                </div>
+                
+                <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2 opacity-90 text-blue-100">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                            <span class="text-sm font-medium uppercase tracking-wider">Sholat Berikutnya</span>
+                        </div>
+                        <h2 class="font-heading text-4xl md:text-5xl font-extrabold tracking-tight mb-2 flex items-center gap-3">
+                            <span id="hero-prayer-name">Dzuhur</span> 
+                            <span class="text-white/80 font-mono font-medium text-3xl" id="countdown">--:--:--</span>
+                        </h2>
+                        <p class="text-sm text-white/80 flex items-center gap-2 mt-1">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                            <span id="current-date">Memuat tanggal...</span>
+                        </p>
+                    </div>
+                    
+                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 text-center min-w-[140px] hide-sakinah">
+                        <p class="text-xs text-blue-100 uppercase font-bold tracking-wider mb-1">Wajib Selesai</p>
+                        <div class="relative w-16 h-16 mx-auto flex items-center justify-center mt-2">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                <circle class="text-white/20 stroke-current" stroke-width="8" cx="50" cy="50" r="40" fill="transparent"></circle>
+                                <circle id="hero-progress-ring" class="text-white stroke-current progress-ring__circle drop-shadow-md" stroke-width="8" stroke-linecap="round" cx="50" cy="50" r="40" fill="transparent" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
+                            </svg>
+                            <span class="absolute text-sm font-bold" id="hero-progress-text">0/5</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Islamic Reminder Quote -->
+            <section class="glass-card rounded-2xl p-5 mb-8 flex flex-col items-center text-center relative overflow-hidden group transition-all hover:shadow-lg">
+                <div class="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="changeQuote()" class="text-slate-400 hover:text-primary transition-colors p-1" title="Ganti Pengingat"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                </div>
+                <i data-lucide="quote" class="w-6 h-6 text-slate-300 dark:text-slate-600 mb-3"></i>
+                <p id="daily-quote-text" class="text-sm md:text-base font-medium text-slate-700 dark:text-slate-300 mb-3 italic px-4">Memuat pengingat...</p>
+                <p id="daily-quote-source" class="text-xs text-slate-500 font-bold bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg inline-block"></p>
+            </section>
+
+            <!-- Overall Progress Bar -->
+            <section class="hide-sakinah glass-card rounded-2xl p-5 mb-8">
+                <h3 class="font-heading font-bold text-lg text-slate-800 dark:text-white mb-3">Perjalanan Ibadah Hari Ini</h3>
+                <div class="w-full bg-slate-100 dark:bg-slate-800/50 rounded-full h-3 mb-2 overflow-hidden shadow-inner border border-slate-200 dark:border-slate-700">
+                    <div id="ibadah-progress-bar" class="bg-gradient-to-r from-primary to-accent h-3 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                </div>
+                <p class="text-right text-xs text-slate-500 font-bold" id="ibadah-progress-text">0 / 7 Selesai</p>
+            </section>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left Column (Prayers) -->
+                <div class="lg:col-span-2 space-y-8">
+                    
+                    <!-- Fard Prayers -->
+                    <section>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-heading font-bold text-xl text-slate-800 dark:text-white">Sholat Wajib</h3>
+                            <span class="text-xs font-bold bg-primary/10 text-primary dark:text-blue-400 px-2 py-1 rounded-md">5 WAKTU</span>
+                        </div>
+                        <div class="space-y-4" id="fard-container">
+                            <!-- Populated by JS -->
+                        </div>
+                    </section>
+
+                    <!-- Extra Ibadah / Sunnah -->
+                    <section class="hide-sakinah">
+                        <div class="flex items-center justify-between mb-4 mt-8">
+                            <h3 class="font-heading font-bold text-xl text-slate-800 dark:text-white">Ibadah Tambahan</h3>
+                            <span class="text-xs font-bold bg-accent/10 text-accent px-2 py-1 rounded-md">ANJURAN</span>
+                        </div>
+                        
+                        <div class="space-y-3 mb-6">
+                            <!-- Quran -->
+                            <label class="flex items-center justify-between glass-card p-4 rounded-xl cursor-pointer hover:shadow-md transition-all group">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg group-hover:scale-110 transition-transform"><i data-lucide="book-open" class="w-5 h-5"></i></div>
+                                    <span class="font-bold text-sm text-slate-700 dark:text-slate-200">Membaca Al-Quran</span>
+                                </div>
+                                <input type="checkbox" id="check-quran" onchange="toggleExtra('quran', this.checked)" class="w-5 h-5 text-primary border-slate-300 rounded focus:ring-primary transition-all">
+                            </label>
+                            <!-- Dhikr -->
+                            <label class="flex items-center justify-between glass-card p-4 rounded-xl cursor-pointer hover:shadow-md transition-all group">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg group-hover:scale-110 transition-transform"><i data-lucide="heart" class="w-5 h-5"></i></div>
+                                    <span class="font-bold text-sm text-slate-700 dark:text-slate-200">Dzikir Harian</span>
+                                </div>
+                                <input type="checkbox" id="check-dhikr" onchange="toggleExtra('dhikr', this.checked)" class="w-5 h-5 text-primary border-slate-300 rounded focus:ring-primary transition-all">
+                            </label>
+                        </div>
+
+                        <!-- Sunnah Prayers inside container -->
+                        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm" id="sunnah-container">
+                            <!-- Populated by JS -->
+                        </div>
+                    </section>
+                    
+                    <!-- Ibadah Journal -->
+                    <section class="mt-8 mb-4 hide-sakinah">
+                        <h3 class="font-heading font-bold text-xl text-slate-800 dark:text-white mb-4 flex items-center gap-2"><i data-lucide="pen-tool" class="w-5 h-5 text-accent"></i> Catatan Hari Ini</h3>
+                        <textarea id="journal-input" onblur="saveJournal(this.value)" placeholder="Tulis refleksi atau jurnal ibadahmu hari ini..." class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary focus:outline-none resize-none h-28 shadow-sm transition-all hover:border-primary/50"></textarea>
+                    </section>
+                </div>
+
+                <!-- Right Column (Highlights) -->
+                <div class="space-y-6 hide-sakinah">
+                    <section class="glass-card rounded-3xl p-6">
+                        <h3 class="font-heading font-bold text-lg text-slate-800 dark:text-white mb-4">Konsistensi 7 Hari</h3>
+                        <div class="flex items-end justify-between h-24 gap-2 mb-2" id="weekly-chart-mini">
+                            <!-- JS Chart -->
+                        </div>
+                        <div class="flex justify-between text-xs font-medium text-slate-400 mt-2" id="weekly-labels-mini"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: CALENDAR & HISTORY -->
+        <div id="view-calendar" class="view-section">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="font-heading font-bold text-2xl text-slate-800 dark:text-white">Riwayat Sholat</h2>
+                <div class="flex items-center gap-4">
+                    <button onclick="changeMonth(-1)" class="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 transition-transform hover:scale-105"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                    <span id="calendar-month-year" class="font-bold text-lg dark:text-white min-w-[120px] text-center">September 2026</span>
+                    <button onclick="changeMonth(1)" class="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 transition-transform hover:scale-105"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="flex flex-wrap gap-4 mb-6 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-success shadow-sm"></div> Lengkap (5)</div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-yellow-400 shadow-sm"></div> Sebagian</div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-red-400 shadow-sm"></div> Terlewat</div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-600 shadow-sm"></div> Belum</div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6">
+                <!-- Days Header -->
+                <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+                </div>
+                <!-- Calendar Grid -->
+                <div id="calendar-grid" class="grid grid-cols-7 gap-2">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <!-- Detail Hari Modal-like section (inline) -->
+            <div id="history-detail-section" class="mt-8 hidden anim-pop">
+                <h3 class="font-heading font-bold text-xl text-slate-800 dark:text-white mb-4" id="history-detail-title">Detail Tanggal</h3>
+                <div class="glass-card p-6 rounded-2xl" id="history-detail-content">
+                    <!-- JS fills this -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: STATISTICS -->
+        <div id="view-stats" class="view-section">
+            <h2 class="font-heading font-bold text-2xl text-slate-800 dark:text-white mb-6">Statistik Ibadah</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="glass-card p-6 rounded-2xl border-t-4 border-t-success flex flex-col items-center justify-center text-center transition-transform hover:scale-105">
+                    <i data-lucide="check-circle" class="w-8 h-8 text-success mb-2"></i>
+                    <h4 class="text-3xl font-bold text-slate-800 dark:text-white" id="stat-fard-completed">0</h4>
+                    <p class="text-sm text-slate-500">Sholat Wajib Selesai</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl border-t-4 border-t-primary flex flex-col items-center justify-center text-center transition-transform hover:scale-105">
+                    <i data-lucide="users" class="w-8 h-8 text-primary mb-2"></i>
+                    <h4 class="text-3xl font-bold text-slate-800 dark:text-white" id="stat-jamaah">0</h4>
+                    <p class="text-sm text-slate-500">Berjamaah</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl border-t-4 border-t-accent flex flex-col items-center justify-center text-center transition-transform hover:scale-105">
+                    <i data-lucide="star" class="w-8 h-8 text-accent mb-2"></i>
+                    <h4 class="text-3xl font-bold text-slate-800 dark:text-white" id="stat-sunnah">0</h4>
+                    <p class="text-sm text-slate-500">Sunnah & Ekstra</p>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6">
+                <h3 class="font-heading font-bold text-lg text-slate-800 dark:text-white mb-6">Konsistensi Wajib (Bulan Ini)</h3>
+                <!-- CSS Bar Chart -->
+                <div class="flex items-end h-40 gap-2 w-full bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700" id="stats-bar-chart">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODALS OVERLAYS -->
+    
+    <!-- Notification Settings Modal -->
+    <div id="notification-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all anim-pop">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-heading font-bold text-lg dark:text-white flex items-center gap-2"><i data-lucide="bell" class="text-accent w-5 h-5"></i> Pengingat Sholat</h3>
+                <button onclick="closeModal('notification-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4 max-h-[50vh] overflow-y-auto" id="notif-settings-container">
+                <!-- JS Populated -->
+            </div>
+            
+            <div class="p-6 pt-0 border-t border-slate-100 dark:border-slate-700 mt-4">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 mt-4">Persiapan Subuh (Menit sebelum)</label>
+                <select id="input-fajr-offset" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-colors">
+                    <option value="0">Tepat Waktu</option>
+                    <option value="15">15 Menit</option>
+                    <option value="30">30 Menit</option>
+                    <option value="45">45 Menit</option>
+                </select>
+                <p class="text-xs text-slate-500 mt-2">Pengingat khusus untuk persiapan Tahajud & Subuh.</p>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                <button onclick="saveNotificationSettings(); closeModal('notification-modal');" class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-all hover:shadow-lg hover:-translate-y-0.5">Simpan Pengaturan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location Settings Modal -->
+    <div id="location-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all anim-pop">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-heading font-bold text-lg dark:text-white flex items-center gap-2"><i data-lucide="map" class="text-accent w-5 h-5"></i> Lokasi & Kalkulasi</h3>
+                <button onclick="closeModal('location-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Kota / Lokasi</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-city" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-colors" value="Jakarta, ID">
+                        <button onclick="detectLocation()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 px-4 rounded-xl text-slate-700 dark:text-white transition-colors" title="Gunakan Lokasi Perangkat"><i data-lucide="crosshair" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Metode Kalkulasi Sholat</label>
+                    <select id="input-calc-method" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none transition-colors">
+                        <option value="kemenag">Kemenag RI (Indonesia)</option>
+                        <option value="mwa">Muslim World League</option>
+                        <option value="isna">ISNA (North America)</option>
+                        <option value="egypt">Egyptian General Authority</option>
+                        <option value="makkah">Umm Al-Qura (Makkah)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                <button onclick="saveLocationSettings(); closeModal('location-modal');" class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-all hover:shadow-lg hover:-translate-y-0.5">Simpan & Perbarui Jadwal</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast-container"></div>
+
+    <script>
+        // --- DATA STRUCTURES ---
+        const PRAYERS_FARD = [
+            { id: 'fajr', name: 'Subuh', time: '04:45', icon: 'sunrise' },
+            { id: 'dhuhr', name: 'Dzuhur', time: '12:05', icon: 'sun' },
+            { id: 'asr', name: 'Ashar', time: '15:25', icon: 'sun-dim' },
+            { id: 'maghrib', name: 'Maghrib', time: '18:10', icon: 'sunset' },
+            { id: 'isha', name: 'Isya', time: '19:20', icon: 'moon' }
+        ];
+
+        const PRAYERS_SUNNAH = [
+            { id: 'qabliyah_subuh', name: 'Qabliyah Subuh', category: 'Subuh' },
+            { id: 'dhuha', name: 'Dhuha', category: 'Pagi' },
+            { id: 'qabliyah_dzuhur', name: 'Qabliyah Dzuhur', category: 'Dzuhur' },
+            { id: 'badiyah_dzuhur', name: 'Ba\'diyah Dzuhur', category: 'Dzuhur' },
+            { id: 'qabliyah_ashar', name: 'Qabliyah Ashar', category: 'Ashar' },
+            { id: 'badiyah_maghrib', name: 'Ba\'diyah Maghrib', category: 'Maghrib' },
+            { id: 'badiyah_isya', name: 'Ba\'diyah Isya', category: 'Isya' },
+            { id: 'tahajud', name: 'Tahajud', category: 'Malam' },
+            { id: 'witir', name: 'Witir', category: 'Malam' }
+        ];
+
+        const ISLAMIC_QUOTES = [
+            { text: "Maka sesungguhnya bersama kesulitan ada kemudahan.", source: "QS. Al-Insyirah: 5" },
+            { text: "Barangsiapa bertakwa kepada Allah niscaya Dia akan membukakan jalan keluar baginya.", source: "QS. At-Talaq: 2" },
+            { text: "Dua rakaat fajar (sholat sunnah sebelum subuh) lebih baik daripada dunia dan seisinya.", source: "HR. Muslim" },
+            { text: "Janganlah kamu bersedih, sesungguhnya Allah bersama kita.", source: "QS. At-Taubah: 40" },
+            { text: "Sebaik-baik manusia adalah yang paling bermanfaat bagi manusia lainnya.", source: "HR. Ahmad" },
+            { text: "Boleh jadi kamu membenci sesuatu, padahal ia amat baik bagimu.", source: "QS. Al-Baqarah: 216" },
+            { text: "Dan Rabbmu tidak pernah lupa.", source: "QS. Maryam: 64" }
+        ];
+
+        let appData = {
+            settings: {
+                city: 'Jakarta, ID',
+                calcMethod: 'kemenag',
+                darkMode: false,
+                sakinahMode: false,
+                reduceMotion: false,
+                fajrOffset: 15,
+                notifications: {} 
+            },
+            history: {} 
+        };
+
+        let currentViewDate = getTodayStr();
+        let calMonth = new Date().getMonth();
+        let calYear = new Date().getFullYear();
+        let clockInterval;
+
+        // --- UTILITIES ---
+        function getTodayStr() {
+            const d = new Date(); 
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function formatDisplayDate(dateStr) {
+            const d = new Date(dateStr);
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return d.toLocaleDateString('id-ID', options);
+        }
+
+        function ensureDateExists(dateStr) {
+            if (!appData.history[dateStr]) {
+                appData.history[dateStr] = { 
+                    fard: {}, 
+                    sunnah: {},
+                    quran: false,
+                    dhikr: false,
+                    journal: ''
+                };
+                PRAYERS_FARD.forEach(p => appData.history[dateStr].fard[p.id] = null);
+                PRAYERS_SUNNAH.forEach(p => appData.history[dateStr].sunnah[p.id] = false);
+            } else {
+                // Migration for legacy saves
+                if (appData.history[dateStr].quran === undefined) appData.history[dateStr].quran = false;
+                if (appData.history[dateStr].dhikr === undefined) appData.history[dateStr].dhikr = false;
+                if (appData.history[dateStr].journal === undefined) appData.history[dateStr].journal = '';
+                
+                PRAYERS_FARD.forEach(p => {
+                    if(appData.history[dateStr].fard[p.id] && appData.history[dateStr].fard[p.id].reflection === undefined){
+                        appData.history[dateStr].fard[p.id].reflection = '';
+                    }
+                });
+            }
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('sahabatSholatData_v3');
+            if (saved) {
+                appData = JSON.parse(saved);
+            } else {
+                PRAYERS_FARD.forEach(p => {
+                    appData.settings.notifications[p.id] = { atTime: true, before10: false };
+                });
+            }
+            
+            // Migrate settings
+            if (appData.settings.sakinahMode === undefined) appData.settings.sakinahMode = false;
+            if (appData.settings.reduceMotion === undefined) appData.settings.reduceMotion = false;
+            if (appData.settings.fajrOffset === undefined) appData.settings.fajrOffset = 15;
+
+            ensureDateExists(getTodayStr());
+            
+            applyDarkMode();
+            applySakinahMode();
+            applyReduceMotion();
+        }
+
+        function saveData() {
+            localStorage.setItem('sahabatSholatData_v3', JSON.stringify(appData));
+            updateDashboardProgress();
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-success' : (type === 'error' ? 'bg-red-500' : 'bg-slate-800');
+            toast.className = `${bg} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-x-full opacity-0`;
+            toast.innerHTML = `<i data-lucide="${type==='success'?'check-circle':'info'}" class="w-5 h-5"></i> <span class="font-medium text-sm">${message}</span>`;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+            
+            setTimeout(() => { toast.classList.remove('translate-x-full', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            document.getElementById(`tab-${viewName}`).classList.add('active');
+
+            if(viewName === 'calendar') renderCalendar();
+            if(viewName === 'stats') renderStats();
+        }
+
+        function toggleProfileMenu() {
+            const menu = document.getElementById('profile-menu');
+            menu.classList.toggle('hidden');
+        }
+        
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // --- SETTINGS TOGGLES ---
+        function toggleDarkMode() {
+            appData.settings.darkMode = !appData.settings.darkMode;
+            applyDarkMode(); saveData();
+        }
+        function applyDarkMode() {
+            if(appData.settings.darkMode) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('dark-mode-text').innerText = 'Mode Terang';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('dark-mode-text').innerText = 'Mode Gelap';
+            }
+        }
+
+        function toggleSakinahMode() {
+            appData.settings.sakinahMode = !appData.settings.sakinahMode;
+            applySakinahMode(); saveData();
+        }
+        function applySakinahMode() {
+            if(appData.settings.sakinahMode) {
+                document.documentElement.classList.add('sakinah-mode');
+                document.getElementById('sakinah-mode-text').innerText = 'Matikan Sakinah Mode';
+            } else {
+                document.documentElement.classList.remove('sakinah-mode');
+                document.getElementById('sakinah-mode-text').innerText = 'Sakinah Mode';
+            }
+        }
+
+        function toggleAnimations() {
+            appData.settings.reduceMotion = !appData.settings.reduceMotion;
+            applyReduceMotion(); saveData();
+        }
+        function applyReduceMotion() {
+            if(appData.settings.reduceMotion) {
+                document.documentElement.classList.add('a11y-reduce-motion');
+                document.getElementById('anim-text').innerText = 'Nyalakan Animasi';
+            } else {
+                document.documentElement.classList.remove('a11y-reduce-motion');
+                document.getElementById('anim-text').innerText = 'Matikan Animasi';
+            }
+        }
+
+        function renderDashboard() {
+            document.getElementById('current-date').innerText = formatDisplayDate(getTodayStr());
+            document.getElementById('header-location').innerText = appData.settings.city;
+            
+            const fardContainer = document.getElementById('fard-container');
+            const sunnahContainer = document.getElementById('sunnah-container');
+            fardContainer.innerHTML = '';
+            sunnahContainer.innerHTML = '';
+
+            const todayData = appData.history[getTodayStr()];
+
+            // RENDER FARD
+            PRAYERS_FARD.forEach(prayer => {
+                const pData = todayData.fard[prayer.id];
+                const isAnswered = pData !== null;
+                const isDone = isAnswered && pData.done === true;
+                const isMissed = isAnswered && pData.done === false;
+
+                let borderClass = 'border-l-4 border-l-transparent';
+                if(isDone) borderClass = 'border-l-4 border-l-success bg-green-50/50 dark:bg-green-900/20 shadow-sm';
+                if(isMissed) borderClass = 'border-l-4 border-l-red-400 bg-red-50/30 dark:bg-red-900/10';
+
+                const card = document.createElement('div');
+                card.className = `glass-card rounded-2xl p-4 md:p-5 transition-all duration-300 ${borderClass} hover:shadow-md`;
+                
+                let bodyHtml = '';
+
+                if (!isAnswered) {
+                    bodyHtml = `
+                        <div class="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3">
+                            <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Sudah melaksanakan sholat?</span>
+                            <div class="flex gap-2">
+                                <button onclick="setFardBase('${prayer.id}', true, this)" class="px-4 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-sm font-bold transition-all flex items-center gap-1"><i data-lucide="check" class="w-4 h-4"></i> Sudah</button>
+                                <button onclick="setFardBase('${prayer.id}', false, this)" class="px-4 py-1.5 bg-slate-100 hover:bg-red-500 text-slate-600 hover:text-white dark:bg-slate-700 dark:text-slate-300 rounded-lg text-sm font-bold transition-all">Belum</button>
+                            </div>
+                        </div>
+                    `;
+                } else if (isMissed) {
+                    bodyHtml = `
+                        <div class="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3">
+                            <span class="text-sm font-semibold text-red-500"><i data-lucide="x-circle" class="w-4 h-4 inline mr-1"></i> Terlewat</span>
+                            <button onclick="resetFard('${prayer.id}')" class="text-xs text-slate-400 hover:text-primary underline transition-colors">Ubah</button>
+                        </div>
+                    `;
+                } else if (isDone) {
+                    const timingTepat = pData.timing === 'tepat';
+                    const typeJamaah = pData.type === 'jamaah';
+                    const refl = pData.reflection || '';
+                    
+                    const btnClass = "px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 border text-center flex-1";
+                    const activeClass = "bg-primary text-white border-primary shadow-md transform scale-100";
+                    const inactiveClass = "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700";
+
+                    bodyHtml = `
+                        <div class="mt-3 border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-success uppercase tracking-wide"><i data-lucide="check-circle-2" class="w-4 h-4 inline mr-1"></i> Selesai</span>
+                                <button onclick="resetFard('${prayer.id}')" class="text-xs text-slate-400 hover:text-primary underline transition-colors">Ubah</button>
+                            </div>
+                            <div class="flex gap-2 w-full hide-sakinah">
+                                <button onclick="updateFardDetail('${prayer.id}', 'timing', 'tepat')" class="${btnClass} ${timingTepat ? activeClass : inactiveClass}">Tepat Waktu</button>
+                                <button onclick="updateFardDetail('${prayer.id}', 'timing', 'terlambat')" class="${btnClass} ${!timingTepat ? activeClass : inactiveClass}">Terlambat</button>
+                            </div>
+                            <div class="flex gap-2 w-full hide-sakinah">
+                                <button onclick="updateFardDetail('${prayer.id}', 'type', 'jamaah')" class="${btnClass} ${typeJamaah ? activeClass : inactiveClass}">Berjamaah</button>
+                                <button onclick="updateFardDetail('${prayer.id}', 'type', 'sendiri')" class="${btnClass} ${!typeJamaah ? activeClass : inactiveClass}">Sendiri</button>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-700/50 hide-sakinah">
+                                <p class="text-xs text-slate-500 mb-2 font-medium">Bagaimana perasaanmu setelah sholat?</p>
+                                <div class="flex gap-3">
+                                    <button onclick="updateFardDetail('${prayer.id}', 'reflection', 'Tenang')" class="text-xl hover:scale-125 transition-transform ${refl==='Tenang'?'bg-blue-100 dark:bg-blue-900/50 rounded-full scale-110 shadow-sm':''}" title="Tenang">😌</button>
+                                    <button onclick="updateFardDetail('${prayer.id}', 'reflection', 'Bahagia')" class="text-xl hover:scale-125 transition-transform ${refl==='Bahagia'?'bg-blue-100 dark:bg-blue-900/50 rounded-full scale-110 shadow-sm':''}" title="Bahagia">😊</button>
+                                    <button onclick="updateFardDetail('${prayer.id}', 'reflection', 'Fokus')" class="text-xl hover:scale-125 transition-transform ${refl==='Fokus'?'bg-blue-100 dark:bg-blue-900/50 rounded-full scale-110 shadow-sm':''}" title="Lebih fokus">🧘</button>
+                                    <button onclick="updateFardDetail('${prayer.id}', 'reflection', 'Biasa')" class="text-xl hover:scale-125 transition-transform ${refl==='Biasa'?'bg-blue-100 dark:bg-blue-900/50 rounded-full scale-110 shadow-sm':''}" title="Biasa saja">😐</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <div class="p-3 bg-slate-100 dark:bg-slate-800 text-primary dark:text-blue-400 rounded-2xl shadow-inner sakinah-mode:bg-transparent sakinah-mode:p-0">
+                                <i data-lucide="${prayer.icon}" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-heading font-bold text-lg text-slate-800 dark:text-white">${prayer.name}</h4>
+                                <p class="text-sm font-semibold text-slate-500 dark:text-slate-400">${prayer.time} WIB</p>
+                            </div>
+                        </div>
+                    </div>
+                    ${bodyHtml}
+                `;
+                fardContainer.appendChild(card);
+            });
+
+            // RENDER SUNNAH
+            let sunnahHtml = '';
+            PRAYERS_SUNNAH.forEach((prayer, index) => {
+                const isChecked = todayData.sunnah[prayer.id];
+                const borderBot = index < PRAYERS_SUNNAH.length - 1 ? 'border-b border-slate-100 dark:border-slate-700' : '';
+                const bgClass = isChecked ? 'bg-success/5 dark:bg-success/10' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50';
+                
+                sunnahHtml += `
+                    <div class="px-4 py-3 flex items-center justify-between transition-colors ${borderBot} ${bgClass}">
+                        <div>
+                            <p class="font-bold text-sm text-slate-800 dark:text-slate-200">${prayer.name}</p>
+                            <p class="text-xs text-slate-400">${prayer.category}</p>
+                        </div>
+                        <div class="flex gap-1 bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
+                            <button onclick="toggleSunnah('${prayer.id}', true)" class="px-3 py-1 rounded-md text-xs font-bold transition-all ${isChecked ? 'bg-success text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}">✓ Ya</button>
+                            <button onclick="toggleSunnah('${prayer.id}', false)" class="px-3 py-1 rounded-md text-xs font-bold transition-all ${!isChecked ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">Belum</button>
+                        </div>
+                    </div>
+                `;
+            });
+            sunnahContainer.innerHTML = sunnahHtml;
+
+            // Extra Ibadah State Update
+            document.getElementById('check-quran').checked = todayData.quran;
+            document.getElementById('check-dhikr').checked = todayData.dhikr;
+
+            // Journal State Update
+            document.getElementById('journal-input').value = todayData.journal;
+
+            updateDashboardProgress();
+            lucide.createIcons();
+        }
+
+        window.setFardBase = (prayerId, isDone, btnEl) => {
+            const today = getTodayStr();
+            if(isDone) {
+                appData.history[today].fard[prayerId] = { done: true, timing: 'tepat', type: 'sendiri', reflection: '' };
+                showToast(`Alhamdulillah! Sholat ${PRAYERS_FARD.find(p=>p.id===prayerId).name} sudah dicatat.`, 'success');
+                
+                // Add pop animation effect context before re-render
+                if(btnEl) {
+                    btnEl.classList.add('scale-110');
+                }
+                setTimeout(() => {
+                    saveData(); 
+                    renderDashboard();
+                }, 300);
+            } else {
+                appData.history[today].fard[prayerId] = { done: false };
+                saveData(); renderDashboard();
+            }
+        };
+
+        window.updateFardDetail = (prayerId, key, value) => {
+            const today = getTodayStr();
+            appData.history[today].fard[prayerId][key] = value;
+            saveData(); renderDashboard();
+        };
+
+        window.resetFard = (prayerId) => {
+            appData.history[getTodayStr()].fard[prayerId] = null;
+            saveData(); renderDashboard();
+        };
+
+        window.toggleSunnah = (prayerId, status) => {
+            appData.history[getTodayStr()].sunnah[prayerId] = status;
+            saveData(); renderDashboard();
+        };
+
+        window.toggleExtra = (type, status) => {
+            appData.history[getTodayStr()][type] = status;
+            saveData(); 
+        };
+
+        window.saveJournal = (text) => {
+            appData.history[getTodayStr()].journal = text;
+            saveData();
+        };
+
+        function updateDashboardProgress() {
+            const todayData = appData.history[getTodayStr()];
+            let fardScore = 0;
+            let totalIbadah = 0;
+            const maxFard = 5; 
+            
+            PRAYERS_FARD.forEach(p => {
+                if(todayData.fard[p.id] && todayData.fard[p.id].done) {
+                    fardScore += 1;
+                    totalIbadah += 1;
+                }
+            });
+            if (todayData.quran) totalIbadah += 1;
+            if (todayData.dhikr) totalIbadah += 1;
+
+            // Update Circular Hero Progress
+            const percentFard = Math.round((fardScore / maxFard) * 100);
+            const circle = document.getElementById('hero-progress-ring');
+            const text = document.getElementById('hero-progress-text');
+            if(circle && text) {
+                const radius = circle.r.baseVal.value;
+                const circumference = radius * 2 * Math.PI;
+                const offset = circumference - (percentFard / 100) * circumference;
+                
+                circle.style.strokeDashoffset = offset;
+                text.innerText = `${fardScore}/5`;
+                if(fardScore === 5) circle.classList.add('text-green-400');
+                else circle.classList.remove('text-green-400');
+            }
+
+            // Update Linear Progress Bar
+            const linearBar = document.getElementById('ibadah-progress-bar');
+            const linearText = document.getElementById('ibadah-progress-text');
+            if(linearBar && linearText) {
+                const linearPercent = (totalIbadah / 7) * 100;
+                linearBar.style.width = `${linearPercent}%`;
+                linearText.innerText = `${totalIbadah} / 7 Selesai`;
+            }
+
+            renderWeeklyChartMini();
+        }
+
+        function startRealTimeClock() {
+            if(clockInterval) clearInterval(clockInterval);
+            clockInterval = setInterval(updateClock, 1000);
+            updateClock(); 
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMin = now.getMinutes();
+            const currentSec = now.getSeconds();
+            const nowTotalSecs = currentHour * 3600 + currentMin * 60 + currentSec;
+
+            let nextPrayer = null;
+            let nextPrayerSecs = 0;
+            let isTomorrow = false;
+
+            for (let i = 0; i < PRAYERS_FARD.length; i++) {
+                const p = PRAYERS_FARD[i];
+                const [h, m] = p.time.split(':').map(Number);
+                const pSecs = h * 3600 + m * 60;
+                if (pSecs > nowTotalSecs) {
+                    nextPrayer = p;
+                    nextPrayerSecs = pSecs;
+                    break;
+                }
+            }
+
+            if (!nextPrayer) {
+                nextPrayer = PRAYERS_FARD[0]; 
+                const [h, m] = nextPrayer.time.split(':').map(Number);
+                nextPrayerSecs = (h + 24) * 3600 + m * 60;
+                isTomorrow = true;
+            }
+
+            const diffSecs = nextPrayerSecs - nowTotalSecs;
+
+            // Trigger on 0
+            if (diffSecs === 0) {
+                showToast(`Waktu sholat ${nextPrayer.name} telah tiba!`, 'success');
+                setTimeout(renderDashboard, 1000); 
+            }
+
+            const h = Math.floor(diffSecs / 3600);
+            const m = Math.floor((diffSecs % 3600) / 60);
+            const s = diffSecs % 60;
+
+            const elCountdown = document.getElementById('countdown');
+            if(elCountdown) {
+                elCountdown.innerText = 
+                    String(h).padStart(2, '0') + ':' + 
+                    String(m).padStart(2, '0') + ':' + 
+                    String(s).padStart(2, '0');
+            }
+
+            const elName = document.getElementById('hero-prayer-name');
+            if(elName) elName.innerText = nextPrayer.name;
+            
+            const elIcon = document.getElementById('hero-bg-icon');
+            if(elIcon) elIcon.setAttribute('data-lucide', nextPrayer.icon);
+
+            // Apply dynamic time-based theme
+            const hero = document.getElementById('hero-widget');
+            if(hero) {
+                let themeClass = 'theme-day';
+                switch(nextPrayer.id) {
+                    case 'dhuhr': themeClass = 'theme-morning'; break;
+                    case 'asr': themeClass = 'theme-day'; break;
+                    case 'maghrib': themeClass = 'theme-afternoon'; break;
+                    case 'isha': themeClass = 'theme-sunset'; break;
+                    case 'fajr': themeClass = 'theme-night'; break;
+                }
+                
+                hero.className = `rounded-3xl p-6 md:p-8 text-white mb-6 shadow-xl relative overflow-hidden transition-colors duration-1000 ${themeClass}`;
+            }
+        }
+
+        function changeQuote() {
+            const random = ISLAMIC_QUOTES[Math.floor(Math.random() * ISLAMIC_QUOTES.length)];
+            const textEl = document.getElementById('daily-quote-text');
+            const sourceEl = document.getElementById('daily-quote-source');
+            
+            // Fade effect
+            textEl.style.opacity = 0;
+            sourceEl.style.opacity = 0;
+            
+            setTimeout(() => {
+                textEl.innerText = `"${random.text}"`;
+                sourceEl.innerText = random.source;
+                textEl.style.opacity = 1;
+                sourceEl.style.opacity = 1;
+            }, 300);
+        }
+
+        function changeMonth(delta) {
+            calMonth += delta;
+            if(calMonth > 11) { calMonth = 0; calYear++; }
+            else if(calMonth < 0) { calMonth = 11; calYear--; }
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            document.getElementById('calendar-month-year').innerText = `${monthNames[calMonth]} ${calYear}`;
+            
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            
+            const firstDay = new Date(calYear, calMonth, 1).getDay();
+            const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+            
+            let startOffset = firstDay === 0 ? 6 : firstDay - 1; 
+
+            for(let i = 0; i < startOffset; i++) {
+                grid.innerHTML += `<div class="aspect-square"></div>`;
+            }
+
+            const todayStr = getTodayStr();
+
+            for(let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                
+                let bgColor = 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'; 
+                let ringColor = '';
+
+                if (dateStr === todayStr) ringColor = 'ring-2 ring-accent ring-offset-2 dark:ring-offset-slate-900';
+
+                if (appData.history[dateStr]) {
+                    const dData = appData.history[dateStr];
+                    let completed = 0;
+                    let recorded = 0;
+                    PRAYERS_FARD.forEach(p => {
+                        if(dData.fard[p.id] !== null) {
+                            recorded++;
+                            if(dData.fard[p.id].done) completed++;
+                        }
+                    });
+
+                    if (completed === 5) bgColor = 'bg-success text-white font-bold shadow-md hover:bg-green-600';
+                    else if (completed > 0) bgColor = 'bg-yellow-400 text-white font-bold shadow-md hover:bg-yellow-500';
+                    else if (recorded === 5 && completed === 0) bgColor = 'bg-red-400 text-white font-bold shadow-md hover:bg-red-500';
+                    else if (new Date(dateStr) < new Date(todayStr)) bgColor = 'bg-red-400 text-white font-bold opacity-70'; 
+                } else if (new Date(dateStr) < new Date(todayStr)) {
+                     bgColor = 'bg-red-400 text-white opacity-50'; 
+                }
+
+                grid.innerHTML += `
+                    <div onclick="showHistoryDetail('${dateStr}')" class="aspect-square flex items-center justify-center rounded-xl cursor-pointer hover:scale-105 transition-all ${bgColor} ${ringColor}">
+                        ${day}
+                    </div>
+                `;
+            }
+        }
+
+        function showHistoryDetail(dateStr) {
+            const section = document.getElementById('history-detail-section');
+            section.classList.remove('hidden');
+            
+            // Re-trigger animation
+            section.classList.remove('anim-pop');
+            void section.offsetWidth; 
+            section.classList.add('anim-pop');
+
+            document.getElementById('history-detail-title').innerText = `Detail: ${formatDisplayDate(dateStr)}`;
+            
+            const content = document.getElementById('history-detail-content');
+            
+            if(!appData.history[dateStr]) {
+                content.innerHTML = `<p class="text-center text-slate-500">Tidak ada catatan untuk hari ini.</p>`;
+                return;
+            }
+
+            let html = `<div class="space-y-3">`;
+            PRAYERS_FARD.forEach(p => {
+                const stat = appData.history[dateStr].fard[p.id];
+                if(stat === null) {
+                    html += `<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700/50 text-slate-400"><span class="font-semibold">${p.name}</span> <span>Belum Dicatat</span></div>`;
+                } else if (stat.done === false) {
+                    html += `<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700/50 text-red-500"><span class="font-semibold">${p.name}</span> <span><i data-lucide="x" class="w-4 h-4 inline"></i> Terlewat</span></div>`;
+                } else {
+                    html += `<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700/50 text-success">
+                        <span class="font-semibold flex items-center gap-2">${p.name} ${stat.reflection ? `<span class="bg-slate-100 dark:bg-slate-700 text-lg rounded-full px-1">${getEmoji(stat.reflection)}</span>` : ''}</span> 
+                        <div class="text-xs space-x-2 text-right">
+                            <span class="bg-success/10 px-2 py-1 rounded">${stat.timing === 'tepat' ? 'Tepat Waktu' : 'Terlambat'}</span>
+                            <span class="bg-success/10 px-2 py-1 rounded">${stat.type === 'jamaah' ? 'Berjamaah' : 'Sendiri'}</span>
+                        </div>
+                    </div>`;
+                }
+            });
+            html += `</div>`;
+
+            // Extra Ibadah
+            html += `<div class="border-t border-slate-100 dark:border-slate-700 pt-4 mt-4">
+                <p class="text-sm font-bold dark:text-slate-300">Ibadah Tambahan</p>
+                <div class="flex gap-4 text-sm mt-3 text-slate-500 dark:text-slate-400">
+                    <span class="flex items-center gap-1 ${appData.history[dateStr].quran ? 'text-purple-600 font-bold bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded-md' : ''}"><i data-lucide="book-open" class="w-4 h-4 inline"></i> Al-Quran</span>
+                    <span class="flex items-center gap-1 ${appData.history[dateStr].dhikr ? 'text-teal-600 font-bold bg-teal-100 dark:bg-teal-900/30 px-2 py-1 rounded-md' : ''}"><i data-lucide="heart" class="w-4 h-4 inline"></i> Dzikir</span>
+                </div>
+            </div>`;
+
+            // Journal
+            if (appData.history[dateStr].journal) {
+                html += `<div class="border-t border-slate-100 dark:border-slate-700 pt-4 mt-4">
+                    <p class="text-sm font-bold dark:text-slate-300 mb-2">Catatan Jurnal</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed">${appData.history[dateStr].journal}</p>
+                </div>`;
+            }
+
+            content.innerHTML = html;
+            lucide.createIcons();
+            
+            setTimeout(() => { document.getElementById('history-detail-section').scrollIntoView({behavior: "smooth", block: "nearest"}); }, 100);
+        }
+
+        function getEmoji(text) {
+            if(text === 'Tenang') return '😌';
+            if(text === 'Bahagia') return '😊';
+            if(text === 'Fokus') return '🧘';
+            if(text === 'Biasa') return '😐';
+            return '';
+        }
+
+        function renderStats() {
+            let totalFard = 0;
+            let totalJamaah = 0;
+            let totalSunnahExtra = 0;
+            
+            Object.values(appData.history).forEach(day => {
+                Object.values(day.fard).forEach(f => {
+                    if(f && f.done) {
+                        totalFard++;
+                        if(f.type === 'jamaah') totalJamaah++;
+                    }
+                });
+                Object.values(day.sunnah).forEach(s => {
+                    if(s) totalSunnahExtra++;
+                });
+                if(day.quran) totalSunnahExtra++;
+                if(day.dhikr) totalSunnahExtra++;
+            });
+
+            document.getElementById('stat-fard-completed').innerText = totalFard;
+            document.getElementById('stat-jamaah').innerText = totalJamaah;
+            document.getElementById('stat-sunnah').innerText = totalSunnahExtra;
+
+            const chart = document.getElementById('stats-bar-chart');
+            chart.innerHTML = '';
+            
+            const dates = [];
+            const d = new Date();
+            for(let i=6; i>=0; i--) {
+                const temp = new Date(d);
+                temp.setDate(temp.getDate() - i);
+                dates.push(`${temp.getFullYear()}-${String(temp.getMonth()+1).padStart(2,'0')}-${String(temp.getDate()).padStart(2,'0')}`);
+            }
+
+            dates.forEach(dateStr => {
+                let score = 0;
+                if(appData.history[dateStr]) {
+                    Object.values(appData.history[dateStr].fard).forEach(f => {
+                        if(f && f.done) score += 20; 
+                    });
+                }
+                
+                const height = score > 0 ? score : 5; 
+                const dayName = new Date(dateStr).toLocaleDateString('id-ID', {weekday:'short'});
+                
+                chart.innerHTML += `
+                    <div class="flex-1 flex flex-col justify-end items-center group">
+                        <div class="w-full max-w-[2.5rem] rounded-t-lg transition-all duration-700 ease-out bg-primary/20 group-hover:bg-primary" style="height: ${height}%">
+                            <div class="h-full w-full rounded-t-lg ${score===100?'bg-success':(score>0?'bg-primary':'bg-slate-300 dark:bg-slate-700')}"></div>
+                        </div>
+                        <span class="text-xs text-slate-500 mt-2 font-medium group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">${dayName}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function renderWeeklyChartMini() {
+            const chart = document.getElementById('weekly-chart-mini');
+            const labels = document.getElementById('weekly-labels-mini');
+            chart.innerHTML = ''; labels.innerHTML = '';
+            
+            const dates = [];
+            const d = new Date();
+            for(let i=6; i>=0; i--) {
+                const temp = new Date(d);
+                temp.setDate(temp.getDate() - i);
+                dates.push(`${temp.getFullYear()}-${String(temp.getMonth()+1).padStart(2,'0')}-${String(temp.getDate()).padStart(2,'0')}`);
+            }
+
+            dates.forEach((dateStr, i) => {
+                let score = 0;
+                if(appData.history[dateStr]) {
+                    Object.values(appData.history[dateStr].fard).forEach(f => {
+                        if(f && f.done) score += 20;
+                    });
+                }
+                const height = score > 0 ? score : 2;
+                const isToday = i === 6;
+                const dayName = new Date(dateStr).toLocaleDateString('id-ID', {weekday:'short'}).charAt(0);
+                
+                chart.innerHTML += `
+                    <div class="flex-1 flex flex-col justify-end items-center h-full group">
+                        <div class="w-full max-w-[12px] rounded-t-sm transition-all duration-700 ease-out ${isToday ? 'bg-accent shadow-[0_0_8px_rgba(14,165,233,0.8)]' : (score===100?'bg-success':'bg-slate-200 dark:bg-slate-700')} group-hover:scale-110 group-hover:-translate-y-1" style="height: ${height}%"></div>
+                    </div>
+                `;
+                labels.innerHTML += `<div class="${isToday ? 'text-accent font-bold scale-110' : ''}">${dayName}</div>`;
+            });
+        }
+
+        function buildNotificationSettings() {
+            const container = document.getElementById('notif-settings-container');
+            container.innerHTML = '';
+            PRAYERS_FARD.forEach(p => {
+                const sett = appData.settings.notifications[p.id] || {atTime:true, before10:false};
+                container.innerHTML += `
+                    <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 transition hover:border-primary/30">
+                        <div class="font-bold text-slate-800 dark:text-slate-200 w-24">${p.name}</div>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="notif-at-${p.id}" class="rounded text-primary focus:ring-primary accent-primary w-4 h-4" ${sett.atTime?'checked':''}>
+                                <span class="text-xs text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">Saat Masuk</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="notif-bf-${p.id}" class="rounded text-primary focus:ring-primary accent-primary w-4 h-4" ${sett.before10?'checked':''}>
+                                <span class="text-xs text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">-10 Menit</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('input-fajr-offset').value = appData.settings.fajrOffset;
+        }
+
+        function saveNotificationSettings() {
+            PRAYERS_FARD.forEach(p => {
+                appData.settings.notifications[p.id] = {
+                    atTime: document.getElementById(`notif-at-${p.id}`).checked,
+                    before10: document.getElementById(`notif-bf-${p.id}`).checked
+                };
+            });
+            appData.settings.fajrOffset = document.getElementById('input-fajr-offset').value;
+            saveData();
+            showToast('Pengaturan notifikasi disimpan.', 'success');
+        }
+
+        function detectLocation() {
+            document.getElementById('input-city').value = "Mencari...";
+            setTimeout(() => {
+                document.getElementById('input-city').value = "Bandung, ID"; 
+                showToast('Lokasi berhasil dideteksi.', 'success');
+            }, 800);
+        }
+
+        function saveLocationSettings() {
+            appData.settings.city = document.getElementById('input-city').value;
+            appData.settings.calcMethod = document.getElementById('input-calc-method').value;
+            saveData();
+            document.getElementById('header-location').innerText = appData.settings.city;
+            showToast('Jadwal diperbarui berdasarkan lokasi.', 'success');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            
+            document.getElementById('input-city').value = appData.settings.city;
+            document.getElementById('input-calc-method').value = appData.settings.calcMethod;
+            buildNotificationSettings();
+
+            renderDashboard();
+            changeQuote(); 
+            startRealTimeClock();
+            
+            // Re-bind Lucide icons periodically just in case
+            setInterval(lucide.createIcons, 2000);
+        });
+
+    </script>
+</body>
+</html>
